@@ -826,7 +826,7 @@ def save_pdf_to_gcs(product_id: str, pdf_bytes: bytes) -> str:
     """PDF를 GCS에 저장하고 경로를 반환합니다."""
     client = storage.Client(project=PROJECT_ID)
     bucket = client.bucket(GCS_BUCKET)
-    blob_path = f"pdfs/{product_id}/{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    blob_path = f"pdfs/{product_id}/latest.pdf"
     blob = bucket.blob(blob_path)
     blob.upload_from_string(pdf_bytes, content_type="application/pdf")
     logger.info(f"GCS 저장 완료: gs://{GCS_BUCKET}/{blob_path}")
@@ -837,19 +837,18 @@ def get_pdf_from_gcs(product_id: str) -> bytes | None:
     """GCS에서 최신 PDF를 다운로드합니다."""
     client = storage.Client(project=PROJECT_ID)
     bucket = client.bucket(GCS_BUCKET)
-    blobs = list(bucket.list_blobs(prefix=f"pdfs/{product_id}/"))
-    if not blobs:
+    blob = bucket.blob(f"pdfs/{product_id}/latest.pdf")
+    if not blob.exists():
         return None
-    latest = sorted(blobs, key=lambda b: b.name, reverse=True)[0]
-    logger.info(f"GCS 조회: {latest.name}")
-    return latest.download_as_bytes()
+    logger.info(f"GCS 조회: {blob.name}")
+    return blob.download_as_bytes()
 
 
 def save_analysis_to_gcs(product_id: str, analysis: dict) -> str:
     """분석 결과 JSON을 GCS에 저장합니다."""
     client = storage.Client(project=PROJECT_ID)
     bucket = client.bucket(GCS_BUCKET)
-    blob_path = f"analysis/{product_id}/{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    blob_path = f"analysis/{product_id}/latest.json"
     blob = bucket.blob(blob_path)
     blob.upload_from_string(
         json.dumps(analysis, ensure_ascii=False, indent=2),
@@ -863,12 +862,11 @@ def get_analysis_from_gcs(product_id: str) -> dict | None:
     """GCS에서 최신 분석 JSON을 가져옵니다."""
     client = storage.Client(project=PROJECT_ID)
     bucket = client.bucket(GCS_BUCKET)
-    blobs = list(bucket.list_blobs(prefix=f"analysis/{product_id}/"))
-    if not blobs:
+    blob = bucket.blob(f"analysis/{product_id}/latest.json")
+    if not blob.exists():
         return None
-    latest = sorted(blobs, key=lambda b: b.name, reverse=True)[0]
-    logger.info(f"분석 JSON 조회: {latest.name}")
-    return json.loads(latest.download_as_string())
+    logger.info(f"분석 JSON 조회: {blob.name}")
+    return json.loads(blob.download_as_string())
 
 
 # ==================== 프록시 & Xvfb (run_crawler_test.py 방식) ====================
